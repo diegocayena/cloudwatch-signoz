@@ -86,6 +86,34 @@ Role associada à VM em vez de credenciais permanentes sempre que isso for poss�
 
 ## Métrica e dashboard
 
+O coletor também consulta `AWS/EC2/EBSIOBalance%` e envia ao SigNoz como
+`aws.ec2.ebs_io_balance`, gauge em percentual de 0 a 100, com os mesmos atributos
+de conta, região, instância, `host.name` e `aws.ec2.tag.UserID`.
+A consulta usa `Average` e período de 300 segundos. EBS é consultado na primeira
+execução e depois a cada 24 horas por conta/região (`ebs_interval_seconds: 86400`).
+CPU continua no intervalo atual (`interval_seconds: 3600` por padrão).
+O agendamento de EBS é verificado em cada ciclo de CPU: se os intervalos não
+forem múltiplos, a consulta ocorre no primeiro ciclo após completar o prazo.
+O relógio fica em memória; reiniciar o serviço ou executar `--once` coleta EBS
+novamente. Falhas de coleta ou envio permitem nova tentativa no próximo ciclo.
+Uma consulta sem dados também conta como executada, evitando consultar a cada
+hora instâncias que não suportam EBSIOBalance%.
+A coleta diária envia o saldo mais recente da janela de consulta, não a média
+nem o mínimo das últimas 24 horas. Use um período de pelo menos 26 horas para
+visualizar EBS no SigNoz, considerando o intervalo diário e o atraso das amostras.
+Essa métrica representa créditos de I/O EBS da instância e só está disponível
+nos tipos compatíveis. Ausência de dados não é convertida em zero.
+O escopo de descoberta continua sendo EC2 T-family; instâncias de outras
+famílias não são incluídas por esta alteração. Não são necessárias permissões
+IAM adicionais. O dashboard e o alerta existentes continuam dedicados a CPU.
+
+São até 250 instâncias por lote quando as duas métricas estão previstas e 500
+quando somente CPU está prevista, respeitando o limite de 500 consultas por
+chamada. `samples_sent` passa a contar as amostras
+das duas métricas, e não a quantidade de instâncias.
+
+Disponibilidade: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/viewing_metrics_with_cloudwatch.html
+
 - Nome: `aws.ec2.cpu_credit_balance`
 - Unidade: crédito
 - Atributos: `cloud.account.id`, `cloud.region`, `host.id`, `host.name` e
@@ -96,5 +124,5 @@ métrica acima e um alerta conforme o limite operacional escolhido. Um limite un
 fixado: o impacto de saldo baixo depende do tipo e do modo de créditos (Standard/Unlimited).
 
 O serviço coleta e redescobre instâncias a cada hora, agrupa até 500 métricas por chamada do
-CloudWatch, consulta regiões em paralelo e não coleta CPU, memória ou disco. A janela de consulta
+CloudWatch e consulta regiões em paralelo. Além dos saldos de créditos, não coleta utilização de CPU, memória ou disco. A janela de consulta
 é de duas horas para tolerar atrasos de publicação; somente a amostra mais recente é enviada.

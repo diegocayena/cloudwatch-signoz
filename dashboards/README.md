@@ -1,4 +1,26 @@
-# Dashboard de créditos de CPU
+# Dashboards de créditos EC2
+
+## Créditos de I/O EBS
+
+Importe `ec2-ebs-io-credits.json` como um novo dashboard. Consulta
+`aws.ec2.ebs_io_balance` e apresenta tabela do último saldo, histórico por
+instância e menor saldo observado por região. Todos os valores são percentuais
+de 0 a 100. O histórico identifica as séries por nome, UserID, região e ID.
+
+Os cinco filtros são os mesmos do dashboard de CPU: conta, região, ID da
+instância, UserID e host.name. Selecione All para visualizar todos os alvos.
+A janela inicial é de 48 horas para acomodar a coleta diária e o atraso de
+publicação; para acompanhar vários dias, selecione 7 dias. A atualização visual
+é horária e não dispara consultas na AWS. Pontos e intervalos vazios são esperados
+com a coleta diária. Os valores não representam mínimos ou médias de 24 horas.
+
+O coletor atualizado precisa ter enviado pelo menos uma amostra de EBS.
+Instâncias sem suporte ou sem dados não terão um valor artificial de zero.
+A tabela pode mostrar uma amostra antiga dentro da janela selecionada.
+O arquivo foi validado localmente quanto à sintaxe, filtros e referências;
+a importação e execução devem ser confirmadas no SigNoz.
+
+## Créditos de CPU
 
 O filtro **Nome da instancia (host.name)** permite selecionar um ou mais nomes
 da tag EC2 `Name`, ou **All**. Ele se aplica aos três painéis e usa o atributo

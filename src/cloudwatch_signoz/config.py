@@ -26,6 +26,7 @@ class Config:
     lookback_seconds: int = 7200
     request_timeout_seconds: int = 30
     log_level: str = "INFO"
+    ebs_interval_seconds: int = 86400
 
 
 def _env(value: Any) -> Any:
@@ -78,7 +79,10 @@ def load_config(path: str | Path) -> Config:
         lookback_seconds=int(raw.get("lookback_seconds", 7200)),
         request_timeout_seconds=int(raw.get("request_timeout_seconds", 30)),
         log_level=str(raw.get("log_level", "INFO")),
+        ebs_interval_seconds=int(raw.get("ebs_interval_seconds", 86400)),
     )
     if cfg.interval_seconds < 60:
         raise ValueError("interval_seconds must be at least 60")
+    if cfg.ebs_interval_seconds < cfg.interval_seconds:
+        raise ValueError("ebs_interval_seconds must be at least interval_seconds")
     return cfg

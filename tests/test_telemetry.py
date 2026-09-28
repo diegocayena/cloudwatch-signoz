@@ -33,7 +33,7 @@ def test_parallel_targets_keep_trace_context_and_report_failures(failure):
         def discover_instances(self):
             return [Instance("i-1", "t3.micro")]
 
-        def collect(self, instances, lookback):
+        def collect(self, instances, lookback, metrics=None):
             if failure and self.target.region == "us-east-1":
                 raise RuntimeError("AWS unavailable")
             return [Sample(self.target.account, self.target.region, instances[0], 42, datetime.now(timezone.utc))]

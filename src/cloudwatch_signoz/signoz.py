@@ -4,7 +4,7 @@ import json
 import urllib.request
 from typing import Iterable
 
-from .aws import Sample
+from .aws import METRICS, Sample
 
 
 def _attr(key: str, value: str) -> dict:
@@ -12,7 +12,7 @@ def _attr(key: str, value: str) -> dict:
 
 
 def otlp_payload(samples: Iterable[Sample]) -> dict:
-    points = []
+    grouped: dict[str, list] = {}
     for sample in samples:
         attributes = [
             _attr("cloud.account.id", sample.account),
@@ -24,7 +24,7 @@ def otlp_payload(samples: Iterable[Sample]) -> dict:
             attributes.append(_attr("host.name", sample.instance.name))
         if sample.instance.user_id:
             attributes.append(_attr("aws.ec2.tag.UserID", sample.instance.user_id))
-        points.append(
+        grouped.setdefault(sample.metric, []).append(
             {
                 "attributes": attributes,
                 "timeUnixNano": str(int(sample.timestamp.timestamp() * 1_000_000_000)),
@@ -37,11 +37,11 @@ def otlp_payload(samples: Iterable[Sample]) -> dict:
             "scopeMetrics": [{
                 "scope": {"name": "cloudwatch-signoz", "version": "0.1.0"},
                 "metrics": [{
-                    "name": "aws.ec2.cpu_credit_balance",
-                    "description": "EC2 CPU burst credits available",
-                    "unit": "{credit}",
+                    "name": METRICS[metric][0],
+                    "description": METRICS[metric][2],
+                    "unit": METRICS[metric][1],
                     "gauge": {"dataPoints": points},
-                }],
+                } for metric, points in grouped.items()],
             }],
         }]
     }

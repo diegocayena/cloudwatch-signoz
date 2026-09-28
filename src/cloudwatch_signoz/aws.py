@@ -10,6 +10,10 @@ import boto3
 from .config import Target
 
 T_FAMILY = re.compile(r"^t\d+[a-z]*\.")
+METRICS = {
+    "CPUCreditBalance": ("aws.ec2.cpu_credit_balance", "{credit}", "EC2 CPU burst credits available"),
+    "EBSIOBalance%": ("aws.ec2.ebs_io_balance", "%", "EC2 EBS I/O burst credits remaining (percent)"),
+}
 
 
 @dataclass(frozen=True)
@@ -27,6 +31,7 @@ class Sample:
     instance: Instance
     value: float
     timestamp: datetime
+    metric: str = "CPUCreditBalance"
 
 
 def _chunks(values: list[Instance], size: int) -> Iterable[list[Instance]]:
@@ -72,19 +77,25 @@ class AwsTargetClient:
                     ))
         return instances
 
-    def collect(self, instances: list[Instance], lookback_seconds: int) -> list[Sample]:
+    def collect(
+        self, instances: list[Instance], lookback_seconds: int,
+        metrics: tuple[str, ...] = tuple(METRICS),
+    ) -> list[Sample]:
         # CloudWatch permits up to 500 MetricDataQueries in one request.
         end = datetime.now(timezone.utc)
         start = end - timedelta(seconds=lookback_seconds)
         samples: list[Sample] = []
-        for batch in _chunks(instances, 500):
+        if not metrics:
+            return samples
+        for batch in _chunks(instances, 500 // len(metrics)):
+            requested = [(instance, metric) for instance in batch for metric in metrics]
             queries = [
                 {
                     "Id": f"m{index}",
                     "MetricStat": {
                         "Metric": {
                             "Namespace": "AWS/EC2",
-                            "MetricName": "CPUCreditBalance",
+                            "MetricName": metric,
                             "Dimensions": [{"Name": "InstanceId", "Value": instance.instance_id}],
                         },
                         "Period": 300,
@@ -92,7 +103,7 @@ class AwsTargetClient:
                     },
                     "ReturnData": True,
                 }
-                for index, instance in enumerate(batch)
+                for index, (instance, metric) in enumerate(requested)
             ]
             response = self.cloudwatch.get_metric_data(
                 MetricDataQueries=queries,
@@ -100,16 +111,17 @@ class AwsTargetClient:
                 EndTime=end,
                 ScanBy="TimestampDescending",
             )
-            by_id = {f"m{i}": instance for i, instance in enumerate(batch)}
+            by_id = {f"m{i}": item for i, item in enumerate(requested)}
             for result in response.get("MetricDataResults", []):
                 if result.get("Values") and result.get("Timestamps"):
                     samples.append(
                         Sample(
                             self.target.account,
                             self.target.region,
-                            by_id[result["Id"]],
+                            by_id[result["Id"]][0],
                             float(result["Values"][0]),
                             result["Timestamps"][0],
+                            by_id[result["Id"]][1],
                         )
                     )
         return samples

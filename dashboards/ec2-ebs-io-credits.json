@@ -1,0 +1,427 @@
+{
+    "schemaVersion":  "v6",
+    "generateName":  true,
+    "tags":  [
+
+             ],
+    "spec":  {
+                 "display":  {
+                                 "name":  "AWS EC2 - Créditos de I/O EBS",
+                                 "description":  "EBSIOBalance%: percentual de créditos de I/O EBS restantes. Coleta diária nas instâncias compatíveis. Ausência de dados não significa zero. Selecione All nos filtros."
+                             },
+                 "duration":  "48h",
+                 "refreshInterval":  "1h",
+                 "variables":  [
+                                   {
+                                       "kind":  "ListVariable",
+                                       "spec":  {
+                                                    "name":  "cloud.account.id",
+                                                    "display":  {
+                                                                    "name":  "Conta AWS"
+                                                                },
+                                                    "allowAllValue":  true,
+                                                    "allowMultiple":  true,
+                                                    "sort":  "none",
+                                                    "plugin":  {
+                                                                   "kind":  "signoz/DynamicVariable",
+                                                                   "spec":  {
+                                                                                "name":  "cloud.account.id",
+                                                                                "signal":  "metrics"
+                                                                            }
+                                                               }
+                                                }
+                                   },
+                                   {
+                                       "kind":  "ListVariable",
+                                       "spec":  {
+                                                    "name":  "cloud.region",
+                                                    "display":  {
+                                                                    "name":  "Região AWS"
+                                                                },
+                                                    "allowAllValue":  true,
+                                                    "allowMultiple":  true,
+                                                    "sort":  "none",
+                                                    "plugin":  {
+                                                                   "kind":  "signoz/DynamicVariable",
+                                                                   "spec":  {
+                                                                                "name":  "cloud.region",
+                                                                                "signal":  "metrics"
+                                                                            }
+                                                               }
+                                                }
+                                   },
+                                   {
+                                       "kind":  "ListVariable",
+                                       "spec":  {
+                                                    "name":  "host.id",
+                                                    "display":  {
+                                                                    "name":  "Instância EC2"
+                                                                },
+                                                    "allowAllValue":  true,
+                                                    "allowMultiple":  true,
+                                                    "sort":  "none",
+                                                    "plugin":  {
+                                                                   "kind":  "signoz/DynamicVariable",
+                                                                   "spec":  {
+                                                                                "name":  "host.id",
+                                                                                "signal":  "metrics"
+                                                                            }
+                                                               }
+                                                }
+                                   },
+                                   {
+                                       "kind":  "ListVariable",
+                                       "spec":  {
+                                                    "name":  "aws.ec2.tag.UserID",
+                                                    "display":  {
+                                                                    "name":  "UserID"
+                                                                },
+                                                    "allowAllValue":  true,
+                                                    "allowMultiple":  true,
+                                                    "sort":  "none",
+                                                    "plugin":  {
+                                                                   "kind":  "signoz/DynamicVariable",
+                                                                   "spec":  {
+                                                                                "signal":  "metrics",
+                                                                                "name":  "aws.ec2.tag.UserID"
+                                                                            }
+                                                               }
+                                                }
+                                   },
+                                   {
+                                       "kind":  "ListVariable",
+                                       "spec":  {
+                                                    "name":  "host.name",
+                                                    "display":  {
+                                                                    "name":  "Nome da instancia (host.name)"
+                                                                },
+                                                    "allowAllValue":  true,
+                                                    "allowMultiple":  true,
+                                                    "sort":  "none",
+                                                    "plugin":  {
+                                                                   "kind":  "signoz/DynamicVariable",
+                                                                   "spec":  {
+                                                                                "signal":  "metrics",
+                                                                                "name":  "host.name"
+                                                                            }
+                                                               }
+                                                }
+                                   }
+                               ],
+                 "panels":  {
+                                "balances":  {
+                                                 "kind":  "Panel",
+                                                 "spec":  {
+                                                              "display":  {
+                                                                              "name":  "Último saldo de I/O por instância (%)",
+                                                                              "description":  "Última amostra disponível no período; coluna A em percentual de 0 a 100. Coleta a cada 24 horas, com horário original do CloudWatch. O saldo pode estar desatualizado. Ordene A para localizar os menores valores."
+                                                                          },
+                                                              "plugin":  {
+                                                                             "kind":  "signoz/TablePanel",
+                                                                             "spec":  {
+                                                                                          "visualization":  {
+                                                                                                                "timePreference":  "global_time"
+                                                                                                            },
+                                                                                          "formatting":  {
+                                                                                                             "columnUnits":  {
+                                                                                                                                 "A":  "percent"
+                                                                                                                             },
+                                                                                                             "decimalPrecision":  "2"
+                                                                                                         }
+                                                                                      }
+                                                                         },
+                                                              "queries":  [
+                                                                              {
+                                                                                  "kind":  "scalar",
+                                                                                  "spec":  {
+                                                                                               "plugin":  {
+                                                                                                              "kind":  "signoz/CompositeQuery",
+                                                                                                              "spec":  {
+                                                                                                                           "queries":  [
+                                                                                                                                           {
+                                                                                                                                               "type":  "builder_query",
+                                                                                                                                               "spec":  {
+                                                                                                                                                            "name":  "A",
+                                                                                                                                                            "signal":  "metrics",
+                                                                                                                                                            "stepInterval":  300,
+                                                                                                                                                            "disabled":  false,
+                                                                                                                                                            "aggregations":  [
+                                                                                                                                                                                 {
+                                                                                                                                                                                     "metricName":  "aws.ec2.ebs_io_balance",
+                                                                                                                                                                                     "timeAggregation":  "max",
+                                                                                                                                                                                     "spaceAggregation":  "max",
+                                                                                                                                                                                     "reduceTo":  "last"
+                                                                                                                                                                                 }
+                                                                                                                                                                             ],
+                                                                                                                                                            "filter":  {
+                                                                                                                                                                           "expression":  "cloud.account.id IN $cloud.account.id AND cloud.region IN $cloud.region AND host.id IN $host.id AND aws.ec2.tag.UserID IN $aws.ec2.tag.UserID AND host.name IN $host.name"
+                                                                                                                                                                       },
+                                                                                                                                                            "groupBy":  [
+                                                                                                                                                                            {
+                                                                                                                                                                                "name":  "cloud.account.id",
+                                                                                                                                                                                "fieldContext":  "attribute",
+                                                                                                                                                                                "fieldDataType":  "string"
+                                                                                                                                                                            },
+                                                                                                                                                                            {
+                                                                                                                                                                                "name":  "cloud.region",
+                                                                                                                                                                                "fieldContext":  "attribute",
+                                                                                                                                                                                "fieldDataType":  "string"
+                                                                                                                                                                            },
+                                                                                                                                                                            {
+                                                                                                                                                                                "name":  "host.id",
+                                                                                                                                                                                "fieldContext":  "attribute",
+                                                                                                                                                                                "fieldDataType":  "string"
+                                                                                                                                                                            },
+                                                                                                                                                                            {
+                                                                                                                                                                                "name":  "host.name",
+                                                                                                                                                                                "fieldContext":  "attribute",
+                                                                                                                                                                                "fieldDataType":  "string"
+                                                                                                                                                                            },
+                                                                                                                                                                            {
+                                                                                                                                                                                "name":  "aws.ec2.instance.type",
+                                                                                                                                                                                "fieldContext":  "attribute",
+                                                                                                                                                                                "fieldDataType":  "string"
+                                                                                                                                                                            },
+                                                                                                                                                                            {
+                                                                                                                                                                                "name":  "aws.ec2.tag.UserID",
+                                                                                                                                                                                "fieldContext":  "attribute",
+                                                                                                                                                                                "fieldDataType":  "string"
+                                                                                                                                                                            }
+                                                                                                                                                                        ],
+                                                                                                                                                            "order":  [
+
+                                                                                                                                                                      ],
+                                                                                                                                                            "limit":  1000,
+                                                                                                                                                            "legend":  ""
+                                                                                                                                                        }
+                                                                                                                                           }
+                                                                                                                                       ]
+                                                                                                                       }
+                                                                                                          }
+                                                                                           }
+                                                                              }
+                                                                          ]
+                                                          }
+                                             },
+                                "history":  {
+                                                "kind":  "Panel",
+                                                "spec":  {
+                                                             "display":  {
+                                                                             "name":  "Histórico de créditos de I/O por instância (%)",
+                                                                             "description":  "Pontos observados na coleta diária. Não representa todas as oscilações entre coletas. Use 7 dias para acompanhar a evolução. Nome e UserID aparecem na legenda."
+                                                                         },
+                                                             "plugin":  {
+                                                                            "kind":  "signoz/TimeSeriesPanel",
+                                                                            "spec":  {
+                                                                                         "visualization":  {
+                                                                                                               "timePreference":  "global_time"
+                                                                                                           },
+                                                                                         "formatting":  {
+                                                                                                            "unit":  "percent",
+                                                                                                            "decimalPrecision":  "2"
+                                                                                                        },
+                                                                                         "chartAppearance":  {
+                                                                                                                 "lineInterpolation":  "linear",
+                                                                                                                 "showPoints":  true,
+                                                                                                                 "lineStyle":  "solid",
+                                                                                                                 "fillMode":  "none"
+                                                                                                             },
+                                                                                         "legend":  {
+                                                                                                        "position":  "bottom",
+                                                                                                        "mode":  "list"
+                                                                                                    }
+                                                                                     }
+                                                                        },
+                                                             "queries":  [
+                                                                             {
+                                                                                 "kind":  "time_series",
+                                                                                 "spec":  {
+                                                                                              "plugin":  {
+                                                                                                             "kind":  "signoz/CompositeQuery",
+                                                                                                             "spec":  {
+                                                                                                                          "queries":  [
+                                                                                                                                          {
+                                                                                                                                              "type":  "builder_query",
+                                                                                                                                              "spec":  {
+                                                                                                                                                           "name":  "A",
+                                                                                                                                                           "signal":  "metrics",
+                                                                                                                                                           "stepInterval":  300,
+                                                                                                                                                           "disabled":  false,
+                                                                                                                                                           "aggregations":  [
+                                                                                                                                                                                {
+                                                                                                                                                                                    "metricName":  "aws.ec2.ebs_io_balance",
+                                                                                                                                                                                    "timeAggregation":  "max",
+                                                                                                                                                                                    "spaceAggregation":  "max"
+                                                                                                                                                                                }
+                                                                                                                                                                            ],
+                                                                                                                                                           "filter":  {
+                                                                                                                                                                          "expression":  "cloud.account.id IN $cloud.account.id AND cloud.region IN $cloud.region AND host.id IN $host.id AND aws.ec2.tag.UserID IN $aws.ec2.tag.UserID AND host.name IN $host.name"
+                                                                                                                                                                      },
+                                                                                                                                                           "groupBy":  [
+                                                                                                                                                                           {
+                                                                                                                                                                               "name":  "cloud.account.id",
+                                                                                                                                                                               "fieldContext":  "attribute",
+                                                                                                                                                                               "fieldDataType":  "string"
+                                                                                                                                                                           },
+                                                                                                                                                                           {
+                                                                                                                                                                               "name":  "cloud.region",
+                                                                                                                                                                               "fieldContext":  "attribute",
+                                                                                                                                                                               "fieldDataType":  "string"
+                                                                                                                                                                           },
+                                                                                                                                                                           {
+                                                                                                                                                                               "name":  "host.id",
+                                                                                                                                                                               "fieldContext":  "attribute",
+                                                                                                                                                                               "fieldDataType":  "string"
+                                                                                                                                                                           },
+                                                                                                                                                                           {
+                                                                                                                                                                               "name":  "host.name",
+                                                                                                                                                                               "fieldContext":  "attribute",
+                                                                                                                                                                               "fieldDataType":  "string"
+                                                                                                                                                                           },
+                                                                                                                                                                           {
+                                                                                                                                                                               "name":  "aws.ec2.tag.UserID",
+                                                                                                                                                                               "fieldContext":  "attribute",
+                                                                                                                                                                               "fieldDataType":  "string"
+                                                                                                                                                                           }
+                                                                                                                                                                       ],
+                                                                                                                                                           "order":  [
+
+                                                                                                                                                                     ],
+                                                                                                                                                           "limit":  1000,
+                                                                                                                                                           "legend":  "{{host.name}} | UserID: {{aws.ec2.tag.UserID}} | {{cloud.region}} | {{host.id}}"
+                                                                                                                                                       }
+                                                                                                                                          }
+                                                                                                                                      ]
+                                                                                                                      }
+                                                                                                         }
+                                                                                          }
+                                                                             }
+                                                                         ]
+                                                         }
+                                            },
+                                "regional-minimum":  {
+                                                         "kind":  "Panel",
+                                                         "spec":  {
+                                                                      "display":  {
+                                                                                      "name":  "Menor saldo de I/O observado por região (%)",
+                                                                                      "description":  "Menor percentual entre as instâncias com amostra em cada intervalo de 5 minutos. Não é o mínimo das últimas 24 horas nem a soma dos créditos. A instância responsável pode mudar."
+                                                                                  },
+                                                                      "plugin":  {
+                                                                                     "kind":  "signoz/TimeSeriesPanel",
+                                                                                     "spec":  {
+                                                                                                  "visualization":  {
+                                                                                                                        "timePreference":  "global_time"
+                                                                                                                    },
+                                                                                                  "formatting":  {
+                                                                                                                     "unit":  "percent",
+                                                                                                                     "decimalPrecision":  "2"
+                                                                                                                 },
+                                                                                                  "chartAppearance":  {
+                                                                                                                          "lineInterpolation":  "linear",
+                                                                                                                          "showPoints":  true,
+                                                                                                                          "lineStyle":  "solid",
+                                                                                                                          "fillMode":  "none"
+                                                                                                                      },
+                                                                                                  "legend":  {
+                                                                                                                 "position":  "bottom",
+                                                                                                                 "mode":  "list"
+                                                                                                             }
+                                                                                              }
+                                                                                 },
+                                                                      "queries":  [
+                                                                                      {
+                                                                                          "kind":  "time_series",
+                                                                                          "spec":  {
+                                                                                                       "plugin":  {
+                                                                                                                      "kind":  "signoz/CompositeQuery",
+                                                                                                                      "spec":  {
+                                                                                                                                   "queries":  [
+                                                                                                                                                   {
+                                                                                                                                                       "type":  "builder_query",
+                                                                                                                                                       "spec":  {
+                                                                                                                                                                    "name":  "A",
+                                                                                                                                                                    "signal":  "metrics",
+                                                                                                                                                                    "stepInterval":  300,
+                                                                                                                                                                    "disabled":  false,
+                                                                                                                                                                    "aggregations":  [
+                                                                                                                                                                                         {
+                                                                                                                                                                                             "metricName":  "aws.ec2.ebs_io_balance",
+                                                                                                                                                                                             "timeAggregation":  "max",
+                                                                                                                                                                                             "spaceAggregation":  "min"
+                                                                                                                                                                                         }
+                                                                                                                                                                                     ],
+                                                                                                                                                                    "filter":  {
+                                                                                                                                                                                   "expression":  "cloud.account.id IN $cloud.account.id AND cloud.region IN $cloud.region AND host.id IN $host.id AND aws.ec2.tag.UserID IN $aws.ec2.tag.UserID AND host.name IN $host.name"
+                                                                                                                                                                               },
+                                                                                                                                                                    "groupBy":  [
+                                                                                                                                                                                    {
+                                                                                                                                                                                        "name":  "cloud.account.id",
+                                                                                                                                                                                        "fieldContext":  "attribute",
+                                                                                                                                                                                        "fieldDataType":  "string"
+                                                                                                                                                                                    },
+                                                                                                                                                                                    {
+                                                                                                                                                                                        "name":  "cloud.region",
+                                                                                                                                                                                        "fieldContext":  "attribute",
+                                                                                                                                                                                        "fieldDataType":  "string"
+                                                                                                                                                                                    }
+                                                                                                                                                                                ],
+                                                                                                                                                                    "order":  [
+
+                                                                                                                                                                              ],
+                                                                                                                                                                    "limit":  1000,
+                                                                                                                                                                    "legend":  "{{cloud.account.id}} / {{cloud.region}}"
+                                                                                                                                                                }
+                                                                                                                                                   }
+                                                                                                                                               ]
+                                                                                                                               }
+                                                                                                                  }
+                                                                                                   }
+                                                                                      }
+                                                                                  ]
+                                                                  }
+                                                     }
+                            },
+                 "layouts":  [
+                                 {
+                                     "kind":  "Grid",
+                                     "spec":  {
+                                                  "display":  {
+                                                                  "title":  "Créditos de I/O EBS — EC2",
+                                                                  "collapse":  {
+                                                                                   "open":  true
+                                                                               }
+                                                              },
+                                                  "items":  [
+                                                                {
+                                                                    "x":  0,
+                                                                    "y":  0,
+                                                                    "width":  12,
+                                                                    "height":  8,
+                                                                    "content":  {
+                                                                                    "$ref":  "#/spec/panels/balances"
+                                                                                }
+                                                                },
+                                                                {
+                                                                    "x":  0,
+                                                                    "y":  8,
+                                                                    "width":  12,
+                                                                    "height":  6,
+                                                                    "content":  {
+                                                                                    "$ref":  "#/spec/panels/history"
+                                                                                }
+                                                                },
+                                                                {
+                                                                    "x":  0,
+                                                                    "y":  14,
+                                                                    "width":  12,
+                                                                    "height":  6,
+                                                                    "content":  {
+                                                                                    "$ref":  "#/spec/panels/regional-minimum"
+                                                                                }
+                                                                }
+                                                            ]
+                                              }
+                                 }
+                             ]
+             }
+}

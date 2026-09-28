@@ -33,6 +33,7 @@ class CollectorService:
         )
         self.instances: dict[object, list[Instance]] = {}
         self.last_discovery: float | None = None
+        self.last_ebs_collection: dict[object, float] = {}
 
     def _discover_if_due(self) -> None:
         if (
@@ -56,10 +57,11 @@ class CollectorService:
     def _attributes(client) -> dict[str, str]:
         return {"cloud.account.id": client.target.account, "cloud.region": client.target.region}
 
-    def _collect(self, client) -> list[Sample]:
+    def _collect(self, client, include_ebs: bool) -> list[Sample]:
         attributes = self._attributes(client)
         with self.telemetry.operation("aws.collect", attributes):
-            samples = client.collect(self.instances.get(client, []), self.config.lookback_seconds)
+            metrics = ("CPUCreditBalance", "EBSIOBalance%") if include_ebs else ("CPUCreditBalance",)
+            samples = client.collect(self.instances.get(client, []), self.config.lookback_seconds, metrics=metrics)
             self.telemetry.samples.add(len(samples), attributes)
             LOG.info("samples_collected count=%d account=%s region=%s", len(samples), client.target.account, client.target.region)
             return samples
@@ -71,15 +73,24 @@ class CollectorService:
     def _run_once(self) -> int:
         self._discover_if_due()
         samples: list[Sample] = []
+        started = time.monotonic()
+        ebs_due = {
+            client for client in self.clients
+            if client not in self.last_ebs_collection
+            or started - self.last_ebs_collection[client] >= self.config.ebs_interval_seconds
+        }
+        ebs_completed = set()
         with ThreadPoolExecutor(max_workers=min(10, len(self.clients))) as executor:
             jobs = {
-                executor.submit(copy_context().run, self._collect, client): client
+                executor.submit(copy_context().run, self._collect, client, client in ebs_due): client
                 for client in self.clients
             }
             for future in as_completed(jobs):
                 client = jobs[future]
                 try:
                     samples.extend(future.result())
+                    if client in ebs_due:
+                        ebs_completed.add(client)
                 except Exception:
                     trace.get_current_span().set_status(trace.Status(
                         trace.StatusCode.ERROR, "One or more AWS targets failed"
@@ -91,6 +102,8 @@ class CollectorService:
         with self.telemetry.operation("signoz.send"):
             self.signoz.send(samples)
             self.telemetry.sent.add(len(samples))
+        for client in ebs_completed:
+            self.last_ebs_collection[client] = started
         LOG.info("samples_sent count=%d", len(samples))
         return len(samples)
 
