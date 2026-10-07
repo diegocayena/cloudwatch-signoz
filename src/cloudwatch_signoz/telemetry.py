@@ -46,7 +46,6 @@ class Telemetry:
                 yield span
             except Exception:
                 status = "error"
-                LOG.exception("operation_failed operation=%s", name)
                 raise
             finally:
                 if span.is_recording() and span.status.status_code == trace.StatusCode.ERROR:

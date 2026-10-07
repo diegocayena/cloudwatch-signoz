@@ -1,5 +1,30 @@
 # CloudWatch → SigNoz
 
+## Falhas AWS e credenciais temporárias
+
+Falhas de descoberta e coleta são isoladas por conta/região. Uma descoberta
+malsucedida é tentada novamente no próximo ciclo, sem redescobrir alvos que
+ainda estão dentro do intervalo. Se houver uma descoberta anterior, suas
+instâncias são usadas até a próxima atualização bem-sucedida; um alvo sem
+descoberta bem-sucedida é ignorado na coleta. O trace do ciclo registra erro
+mesmo quando as métricas dos outros alvos são enviadas normalmente.
+
+Roles configuradas com `role_arn` usam credenciais renováveis pelo botocore,
+inclusive durante paginação e coleta. A primeira chamada STS é adiada até o
+uso do alvo. O STS usa a região do alvo; os clientes têm timeouts e até três
+tentativas no modo standard para falhas transitórias suportadas pelo SDK.
+Credenciais temporárias fornecidas diretamente pelo ambiente continuam
+dependendo de renovação externa; prefira uma IAM Role ou um perfil renovável.
+
+Cada falha AWS gera um log com `account`, `region`, `aws_error` e `request_id`,
+sem repetir o stack trace nas camadas de telemetria. Para `RequestExpired`,
+`RequestTimeTooSkewed` e `RequestInTheFuture`, o log indica verificar o relógio
+e NTP. Quando a resposta contém o cabeçalho Date, `local_minus_aws_seconds`
+mostra a diferença aproximada entre o relógio local e a AWS (positiva quando
+o relógio local está adiantado). O coletor não altera o relógio do servidor.
+Verifique no host Linux com `date -u`, `timedatectl status` e, se instalado,
+`chronyc tracking`; corrija a sincronização no host que executa o container.
+
 A aplicação também envia logs, traces e métricas operacionais ao SigNoz.
 Consulte [instrumentação e validação](docs/telemetry.md).
 

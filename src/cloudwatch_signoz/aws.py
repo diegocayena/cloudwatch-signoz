@@ -6,6 +6,9 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Iterable
 
 import boto3
+import botocore.session
+from botocore.config import Config as BotoConfig
+from botocore.credentials import DeferredRefreshableCredentials
 
 from .config import Target
 
@@ -43,6 +46,10 @@ class AwsTargetClient:
     def __init__(self, target: Target, base_session: Any | None = None) -> None:
         self.target = target
         session = base_session or boto3.Session()
+        client_config = BotoConfig(
+            connect_timeout=10, read_timeout=30,
+            retries={"mode": "standard", "total_max_attempts": 3},
+        )
         if target.role_arn:
             params: dict[str, str] = {
                 "RoleArn": target.role_arn,
@@ -50,14 +57,26 @@ class AwsTargetClient:
             }
             if target.external_id:
                 params["ExternalId"] = target.external_id
-            creds = session.client("sts").assume_role(**params)["Credentials"]
-            session = boto3.Session(
-                aws_access_key_id=creds["AccessKeyId"],
-                aws_secret_access_key=creds["SecretAccessKey"],
-                aws_session_token=creds["SessionToken"],
+            sts = session.client("sts", region_name=target.region, config=client_config)
+
+            def refresh():
+                creds = sts.assume_role(**params)["Credentials"]
+                return {
+                    "access_key": creds["AccessKeyId"],
+                    "secret_key": creds["SecretAccessKey"],
+                    "token": creds["SessionToken"],
+                    "expiry_time": creds["Expiration"].isoformat(),
+                }
+
+            # Botocore owns expiry checks and the refresh lock. Deferred loading
+            # keeps a failing role from preventing other targets from starting.
+            role_session = botocore.session.get_session()
+            role_session._credentials = DeferredRefreshableCredentials(
+                refresh_using=refresh, method="assume-role",
             )
-        self.ec2 = session.client("ec2", region_name=target.region)
-        self.cloudwatch = session.client("cloudwatch", region_name=target.region)
+            session = boto3.Session(botocore_session=role_session)
+        self.ec2 = session.client("ec2", region_name=target.region, config=client_config)
+        self.cloudwatch = session.client("cloudwatch", region_name=target.region, config=client_config)
 
     def discover_instances(self) -> list[Instance]:
         paginator = self.ec2.get_paginator("describe_instances")

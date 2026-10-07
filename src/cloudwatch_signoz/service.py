@@ -5,7 +5,11 @@ import threading
 import time
 from contextvars import copy_context
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Callable
+
+from botocore.exceptions import ClientError
 
 from opentelemetry import trace
 
@@ -32,26 +36,57 @@ class CollectorService:
             config.signoz_endpoint, config.signoz_ingestion_key, config.request_timeout_seconds
         )
         self.instances: dict[object, list[Instance]] = {}
-        self.last_discovery: float | None = None
+        self.last_discovery: dict[object, float] = {}
         self.last_ebs_collection: dict[object, float] = {}
 
     def _discover_if_due(self) -> None:
-        if (
-            self.last_discovery is not None
-            and time.monotonic() - self.last_discovery < self.config.discovery_interval_seconds
-        ):
-            return
         for client in self.clients:
+            if (
+                client in self.last_discovery
+                and time.monotonic() - self.last_discovery[client] < self.config.discovery_interval_seconds
+            ):
+                continue
             attributes = self._attributes(client)
-            with self.telemetry.operation("aws.discover", attributes):
-                discovered = client.discover_instances()
-                self.telemetry.instances.record(len(discovered), attributes)
+            try:
+                with self.telemetry.operation("aws.discover", attributes):
+                    discovered = client.discover_instances()
+                    self.telemetry.instances.record(len(discovered), attributes)
+            except Exception as error:
+                self._target_failed("discovery", client, error)
+                continue
             self.instances[client] = discovered
+            self.last_discovery[client] = time.monotonic()
             LOG.info(
                 "discovered_instances count=%d account=%s region=%s",
                 len(discovered), client.target.account, client.target.region,
             )
-        self.last_discovery = time.monotonic()
+
+    def _target_failed(self, operation: str, client, error: Exception) -> None:
+        trace.get_current_span().set_status(trace.Status(
+            trace.StatusCode.ERROR, "One or more AWS targets failed"
+        ))
+        if isinstance(error, ClientError):
+            code = error.response.get("Error", {}).get("Code", "unknown")
+            metadata = error.response.get("ResponseMetadata", {})
+            details = ""
+            if code in {"RequestExpired", "RequestTimeTooSkewed", "RequestInTheFuture"}:
+                details = " check_host_clock_and_ntp=true"
+                headers = metadata.get("HTTPHeaders", {})
+                server_date = headers.get("date") or headers.get("Date")
+                if server_date:
+                    try:
+                        offset = (datetime.now(timezone.utc) - parsedate_to_datetime(server_date)).total_seconds()
+                        details += f" local_minus_aws_seconds={offset:.1f}"
+                    except (ValueError, TypeError, OverflowError):
+                        pass
+            LOG.error(
+                "%s_failed account=%s region=%s aws_error=%s request_id=%s%s",
+                operation, client.target.account, client.target.region,
+                code, metadata.get("RequestId", "unknown"), details,
+            )
+        else:
+            LOG.exception("%s_failed account=%s region=%s", operation,
+                          client.target.account, client.target.region)
 
     @staticmethod
     def _attributes(client) -> dict[str, str]:
@@ -83,7 +118,7 @@ class CollectorService:
         with ThreadPoolExecutor(max_workers=min(10, len(self.clients))) as executor:
             jobs = {
                 executor.submit(copy_context().run, self._collect, client, client in ebs_due): client
-                for client in self.clients
+                for client in self.clients if client in self.instances
             }
             for future in as_completed(jobs):
                 client = jobs[future]
@@ -91,14 +126,8 @@ class CollectorService:
                     samples.extend(future.result())
                     if client in ebs_due:
                         ebs_completed.add(client)
-                except Exception:
-                    trace.get_current_span().set_status(trace.Status(
-                        trace.StatusCode.ERROR, "One or more AWS targets failed"
-                    ))
-                    LOG.exception(
-                        "collection_failed account=%s region=%s",
-                        client.target.account, client.target.region,
-                    )
+                except Exception as error:
+                    self._target_failed("collection", client, error)
         with self.telemetry.operation("signoz.send"):
             self.signoz.send(samples)
             self.telemetry.sent.add(len(samples))
