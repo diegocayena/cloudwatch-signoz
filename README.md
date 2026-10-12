@@ -37,6 +37,7 @@ Verifique no host Linux com `date -u`, `timedatectl status` e, se instalado,
 A aplicação também envia logs, traces e métricas operacionais ao SigNoz.
 Consulte [instrumentação e validação](docs/telemetry.md).
 
+
 ## Publicação da imagem no GitHub
 
 O workflow `.github/workflows/publish-image.yml` executa os testes e publica a
