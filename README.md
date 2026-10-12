@@ -2,6 +2,15 @@
 
 ## Falhas AWS e credenciais temporárias
 
+Para erros recorrentes de `RequestExpired`, siga o
+[procedimento de correção e validação](docs/request-expired.md). Inclui um
+script de sincronização persistente do relógio no host EC2 e a atualização
+da imagem antiga do coletor.
+
+Para aplicar apenas a atualização do container, preservando o relógio da VM,
+execute `bash scripts/update-collector.sh` na cópia atualizada do repositório
+no host Docker, com seus arquivos `.env` e `config.yaml` existentes.
+
 Falhas de descoberta e coleta são isoladas por conta/região. Uma descoberta
 malsucedida é tentada novamente no próximo ciclo, sem redescobrir alvos que
 ainda estão dentro do intervalo. Se houver uma descoberta anterior, suas
