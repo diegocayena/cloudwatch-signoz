@@ -1,0 +1,26 @@
+name: Test collector
+
+on:
+  pull_request:
+  push:
+    branches: [main, stg]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Check deployment script
+        run: bash -n scripts/update-collector.sh
+      - name: Run regression tests with Python 3.12
+        run: |
+          docker run --rm \
+            -v "$PWD:/app" -w /app \
+            python:3.12-slim \
+            sh -c 'pip install --no-cache-dir ".[test]" && python -m pytest -q'

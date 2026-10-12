@@ -1,5 +1,24 @@
 # CloudWatch → SigNoz
 
+## Correção de falhas AWS por conta/região
+
+Falhas de descoberta e coleta são isoladas por alvo. O coletor preserva o
+inventário anterior quando disponível e tenta a descoberta novamente no próximo
+ciclo, mantendo os demais alvos funcionando. Roles em `role_arn` usam credenciais
+renováveis; credenciais temporárias fixadas no ambiente exigem renovação externa.
+Os clientes AWS usam timeouts e até três tentativas standard para erros
+transitórios suportados pelo SDK.
+
+Os logs de falha identificam conta, região, código AWS e request ID sem stack
+traces duplicados. Para erros de horário, incluem a diferença aproximada para
+a AWS quando a resposta contém Date. O trace do ciclo indica erro mesmo quando
+as métricas dos outros alvos são enviadas.
+
+Após atualizar o repositório no host Docker, execute
+`bash scripts/update-collector.sh` para aplicar e verificar a correção somente
+no container, sem alterar o relógio da VM. Consulte o
+[procedimento de implantação e diagnóstico](docs/request-expired.md).
+
 A aplicação também envia logs, traces e métricas operacionais ao SigNoz.
 Consulte [instrumentação e validação](docs/telemetry.md).
 
