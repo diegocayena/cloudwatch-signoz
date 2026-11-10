@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from typing import Any, Iterable
 
@@ -25,6 +25,7 @@ class Instance:
     instance_type: str
     name: str = ""
     user_id: str = ""
+    cpu_credit_mode: str = ""
 
 
 @dataclass(frozen=True)
@@ -94,7 +95,23 @@ class AwsTargetClient:
                         item["InstanceId"], instance_type,
                         tags.get("Name", ""), tags.get("UserID", ""),
                     ))
-        return instances
+        credit_modes: dict[str, str] = {}
+        for batch in _chunks(instances, 1000):
+            params: dict[str, Any] = {
+                "InstanceIds": [instance.instance_id for instance in batch],
+            }
+            while True:
+                response = self.ec2.describe_instance_credit_specifications(**params)
+                for specification in response.get("InstanceCreditSpecifications", []):
+                    mode = specification.get("CpuCredits")
+                    if mode in {"standard", "unlimited"}:
+                        credit_modes[specification["InstanceId"]] = mode
+                token = response.get("NextToken")
+                if not token:
+                    break
+                params["NextToken"] = token
+        return [replace(instance, cpu_credit_mode=credit_modes.get(instance.instance_id, ""))
+                for instance in instances]
 
     def collect(
         self, instances: list[Instance], lookback_seconds: int,

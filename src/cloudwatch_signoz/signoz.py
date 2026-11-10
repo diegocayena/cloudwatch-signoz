@@ -24,6 +24,8 @@ def otlp_payload(samples: Iterable[Sample]) -> dict:
             attributes.append(_attr("host.name", sample.instance.name))
         if sample.instance.user_id:
             attributes.append(_attr("aws.ec2.tag.UserID", sample.instance.user_id))
+        if sample.instance.cpu_credit_mode:
+            attributes.append(_attr("aws.ec2.cpu_credit_mode", sample.instance.cpu_credit_mode))
         grouped.setdefault(sample.metric, []).append(
             {
                 "attributes": attributes,

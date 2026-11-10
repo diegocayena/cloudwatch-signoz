@@ -3,7 +3,7 @@
   "Statement": [
     {
       "Effect": "Allow",
-      "Action": ["ec2:DescribeInstances", "cloudwatch:GetMetricData"],
+      "Action": ["ec2:DescribeInstances", "ec2:DescribeInstanceCreditSpecifications", "cloudwatch:GetMetricData"],
       "Resource": "*"
     }
   ]

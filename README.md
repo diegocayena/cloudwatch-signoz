@@ -98,6 +98,19 @@ SIGNOZ_INGESTION_KEY=... .venv/bin/cloudwatch-signoz --config config.yaml --once
 
 ## AWS IAM
 
+O inventário consulta `DescribeInstanceCreditSpecifications` na EC2 e inclui
+`aws.ec2.cpu_credit_mode` (`standard` ou `unlimited`) nas métricas enviadas ao
+SigNoz, permitindo filtrar e agrupar por modo de créditos. A consulta ocorre
+no intervalo de descoberta (`discovery_interval_seconds`), em lotes de até
+1000 instâncias, sem adicionar consultas de métricas ao CloudWatch.
+Atualize a policy do usuário ou da role de destino com
+`ec2:DescribeInstanceCreditSpecifications`, conforme `iam-policy.json`.
+Respostas sem modo conhecido omitem o atributo, sem presumir Standard.
+Se a consulta falhar, aplica-se o tratamento de falhas de descoberta descrito
+acima: preservação do inventário anterior e nova tentativa no próximo ciclo.
+
+Referência: [API da EC2](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstanceCreditSpecifications.html).
+
 Anexe `iam-policy.json` ao usuário IAM dono da Access Key. Para consultar outra conta, a
 credencial-base também precisa de `sts:AssumeRole`, e a role de destino deve confiar nesse usuário.
 `external_id` é aceito por alvo quando exigido pela trust policy. Em produção, prefira uma IAM
