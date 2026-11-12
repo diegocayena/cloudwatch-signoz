@@ -106,6 +106,25 @@
                                                                             }
                                                                }
                                                 }
+                                   },
+                                   {
+                                       "kind":  "ListVariable",
+                                       "spec":  {
+                                                    "name":  "aws.ec2.cpu_credit_mode",
+                                                    "display":  {
+                                                                    "name":  "Modo de créditos de CPU"
+                                                                },
+                                                    "allowAllValue":  true,
+                                                    "allowMultiple":  true,
+                                                    "sort":  "none",
+                                                    "plugin":  {
+                                                                   "kind":  "signoz/DynamicVariable",
+                                                                   "spec":  {
+                                                                                "signal":  "metrics",
+                                                                                "name":  "aws.ec2.cpu_credit_mode"
+                                                                            }
+                                                               }
+                                                }
                                    }
                                ],
                  "panels":  {
@@ -114,7 +133,7 @@
                                                  "spec":  {
                                                               "display":  {
                                                                               "name":  "Último saldo por instância (créditos)",
-                                                                              "description":  "Última amostra disponível no período selecionado, por conta, região e instância. Pode ter até duas horas de atraso. Ordene a coluna A para localizar os menores saldos."
+                                                                              "description":  "Última amostra disponível no período selecionado, por conta, região e instância. Pode ter até duas horas de atraso. Ordene a coluna A para localizar os menores saldos. A coluna aws.ec2.cpu_credit_mode informa standard ou unlimited conforme a amostra coletada."
                                                                           },
                                                               "plugin":  {
                                                                              "kind":  "signoz/TablePanel",
@@ -154,7 +173,7 @@
                                                                                                                                                                                  }
                                                                                                                                                                              ],
                                                                                                                                                             "filter":  {
-                                                                                                                                                                           "expression":  "cloud.account.id IN $cloud.account.id AND cloud.region IN $cloud.region AND host.id IN $host.id AND aws.ec2.tag.UserID IN $aws.ec2.tag.UserID AND host.name IN $host.name"
+                                                                                                                                                                           "expression":  "cloud.account.id IN $cloud.account.id AND cloud.region IN $cloud.region AND host.id IN $host.id AND aws.ec2.tag.UserID IN $aws.ec2.tag.UserID AND host.name IN $host.name AND aws.ec2.cpu_credit_mode IN $aws.ec2.cpu_credit_mode"
                                                                                                                                                                        },
                                                                                                                                                             "groupBy":  [
                                                                                                                                                                             {
@@ -184,6 +203,11 @@
                                                                                                                                                                             },
                                                                                                                                                                             {
                                                                                                                                                                                 "name":  "aws.ec2.tag.UserID",
+                                                                                                                                                                                "fieldContext":  "attribute",
+                                                                                                                                                                                "fieldDataType":  "string"
+                                                                                                                                                                            },
+                                                                                                                                                                            {
+                                                                                                                                                                                "name":  "aws.ec2.cpu_credit_mode",
                                                                                                                                                                                 "fieldContext":  "attribute",
                                                                                                                                                                                 "fieldDataType":  "string"
                                                                                                                                                                             }
@@ -255,7 +279,7 @@
                                                                                                                                                                                 }
                                                                                                                                                                             ],
                                                                                                                                                            "filter":  {
-                                                                                                                                                                          "expression":  "cloud.account.id IN $cloud.account.id AND cloud.region IN $cloud.region AND host.id IN $host.id AND aws.ec2.tag.UserID IN $aws.ec2.tag.UserID AND host.name IN $host.name"
+                                                                                                                                                                          "expression":  "cloud.account.id IN $cloud.account.id AND cloud.region IN $cloud.region AND host.id IN $host.id AND aws.ec2.tag.UserID IN $aws.ec2.tag.UserID AND host.name IN $host.name AND aws.ec2.cpu_credit_mode IN $aws.ec2.cpu_credit_mode"
                                                                                                                                                                       },
                                                                                                                                                            "groupBy":  [
                                                                                                                                                                            {
@@ -272,13 +296,18 @@
                                                                                                                                                                                "name":  "host.id",
                                                                                                                                                                                "fieldContext":  "attribute",
                                                                                                                                                                                "fieldDataType":  "string"
+                                                                                                                                                                           },
+                                                                                                                                                                           {
+                                                                                                                                                                               "name":  "aws.ec2.cpu_credit_mode",
+                                                                                                                                                                               "fieldContext":  "attribute",
+                                                                                                                                                                               "fieldDataType":  "string"
                                                                                                                                                                            }
                                                                                                                                                                        ],
                                                                                                                                                            "order":  [
 
                                                                                                                                                                      ],
                                                                                                                                                            "limit":  1000,
-                                                                                                                                                           "legend":  "{{cloud.account.id}} / {{cloud.region}} / {{host.id}}"
+                                                                                                                                                           "legend":  "{{cloud.account.id}} / {{cloud.region}} / {{host.id}} | {{aws.ec2.cpu_credit_mode}}"
                                                                                                                                                        }
                                                                                                                                           }
                                                                                                                                       ]
@@ -341,7 +370,7 @@
                                                                                                                                                                                          }
                                                                                                                                                                                      ],
                                                                                                                                                                     "filter":  {
-                                                                                                                                                                                   "expression":  "cloud.account.id IN $cloud.account.id AND cloud.region IN $cloud.region AND host.id IN $host.id AND aws.ec2.tag.UserID IN $aws.ec2.tag.UserID AND host.name IN $host.name"
+                                                                                                                                                                                   "expression":  "cloud.account.id IN $cloud.account.id AND cloud.region IN $cloud.region AND host.id IN $host.id AND aws.ec2.tag.UserID IN $aws.ec2.tag.UserID AND host.name IN $host.name AND aws.ec2.cpu_credit_mode IN $aws.ec2.cpu_credit_mode"
                                                                                                                                                                                },
                                                                                                                                                                     "groupBy":  [
                                                                                                                                                                                     {
